@@ -3,8 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tabs | High Vis Command</title>
+    <title>Tabs | Command Deck</title>
     
+    <!-- App Icon & PWA Metadata -->
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- Manifest for Taskbar/Dock Branding -->
+    <link rel="manifest" href="data:application/manifest+json,{'name':'Tabs','short_name':'Tabs','icons':[{'src':'icon.png','sizes':'192x192','type':'image/png'}],'start_url':'.','display':'standalone','background_color':'#000000'}">
+
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -16,12 +25,11 @@
             background-color: #000; 
             color: #fff; 
             font-family: 'Geist Mono', monospace;
-            font-weight: 700; /* Global Bold */
+            font-weight: 700;
             margin: 0;
             overflow-x: hidden;
         }
 
-        /* High Luminosity Orange Glow */
         .glow-border {
             border: 2px solid rgba(255, 170, 0, 0.4);
             box-shadow: 0 0 20px rgba(255, 170, 0, 0.1);
@@ -45,25 +53,6 @@
             outline: none;
         }
 
-        .btn-execute {
-            background: #ffaa00;
-            color: #000;
-            padding: 14px 28px;
-            border-radius: 4px;
-            text-transform: uppercase;
-            font-size: 14px;
-            letter-spacing: 2px;
-        }
-
-        .btn-abort {
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            color: #fff;
-            padding: 14px 28px;
-            border-radius: 4px;
-            text-transform: uppercase;
-            font-size: 14px;
-        }
-
         input {
             background: #0a0a0a !important;
             border: 2px solid #222 !important;
@@ -73,11 +62,10 @@
             border-radius: 6px;
         }
 
+        .btn-execute { background: #ffaa00; color: #000; padding: 14px 28px; border-radius: 4px; text-transform: uppercase; }
+        .btn-abort { border: 2px solid rgba(255, 255, 255, 0.3); color: #fff; padding: 14px 28px; border-radius: 4px; text-transform: uppercase; }
         .modal-bg { background: rgba(0, 0, 0, 0.97); }
-        
-        /* Custom scrollbar for orientation */
         ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #000; }
         ::-webkit-scrollbar-thumb { background: #ffaa00; border-radius: 4px; }
     </style>
 </head>
@@ -122,7 +110,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `tabs_sync_${new Date().toLocaleDateString()}.json`;
+                a.download = `tabs_sync.json`;
                 a.click();
             };
 
@@ -135,25 +123,21 @@
                         const imported = JSON.parse(ev.target.result);
                         if (imported.folders && imported.links) {
                             setData(imported);
-                            alert("SYNC COMPLETE: System Repopulated.");
+                            alert("SYNC COMPLETE");
                         }
-                    } catch (err) { alert("DATA CORRUPTION: Invalid JSON file."); }
+                    } catch (err) { alert("ERROR: Invalid Data"); }
                 };
                 reader.readAsText(file);
             };
 
-            // Search Filter Logic
             const filterItems = (items) => items.filter(item => 
                 item.name.toLowerCase().includes(searchTerm.toLowerCase())
             );
 
             return (
                 <div className="min-h-screen p-8 md:p-16 max-w-6xl mx-auto">
-                    {/* Header Area */}
                     <header className="text-center mb-12">
                         <h1 className="text-7xl font-bold tracking-[0.3em] uppercase italic text-white mb-6">Tabs</h1>
-                        
-                        {/* Live Search Bar */}
                         <div className="max-w-xl mx-auto mb-10">
                             <input 
                                 placeholder="SEARCH DATA NODES..." 
@@ -162,7 +146,6 @@
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-
                         <div className="flex flex-wrap justify-center gap-8">
                             <button onClick={() => setModal({ open: true, type: 'folder' })} className="text-xs uppercase tracking-widest text-orange-400 hover:text-orange-200">New Folder</button>
                             <button onClick={() => setModal({ open: true, type: 'link' })} className="text-xs uppercase tracking-widest text-orange-400 hover:text-orange-200">Add Link Card</button>
@@ -172,12 +155,10 @@
                         <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleFileUpload} />
                     </header>
 
-                    {/* Folders Section */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-16">
                         {data.folders.map(folder => {
                             const filteredLinks = filterItems(folder.links);
                             if (searchTerm && filteredLinks.length === 0 && !folder.name.toLowerCase().includes(searchTerm.toLowerCase())) return null;
-                            
                             return (
                                 <div key={folder.id} onDragOver={e => e.preventDefault()} onDrop={() => {
                                     if (!dragId || dragId.startsWith('f')) return;
@@ -189,11 +170,11 @@
                                 }} className="glow-border p-10 rounded-xl bg-[#030303] min-h-[200px]">
                                     <div className="flex justify-between items-center mb-8 border-b-2 border-orange-500/20 pb-4">
                                         <span className="text-sm font-bold uppercase tracking-[0.4em] text-orange-500">{folder.name}</span>
-                                        <button onClick={() => setData(prev => ({...prev, folders: prev.folders.filter(f => f.id !== folder.id)}))} className="text-orange-900 hover:text-red-500 text-[10px] tracking-tighter">DELETE_DIR</button>
+                                        <button onClick={() => setData(prev => ({...prev, folders: prev.folders.filter(f => f.id !== folder.id)}))} className="text-orange-900 text-[10px]">DELETE</button>
                                     </div>
                                     <div className="flex flex-wrap gap-4">
                                         {filteredLinks.map(link => (
-                                            <div key={link.id} onClick={() => window.open(link.url, '_blank')} className="px-6 py-4 border-2 border-orange-500/30 text-md hover:bg-orange-500 hover:text-black cursor-pointer rounded-lg transition-all lit-text uppercase">
+                                            <div key={link.id} onClick={() => window.open(link.url, '_blank')} className="px-6 py-4 border-2 border-orange-500/30 text-md hover:bg-orange-500 hover:text-black cursor-pointer rounded-lg lit-text uppercase transition-all">
                                                 {link.name}
                                             </div>
                                         ))}
@@ -203,35 +184,30 @@
                         })}
                     </div>
 
-                    {/* Loose Links Section */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                         {filterItems(data.links).map(link => (
-                            <div key={link.id} draggable onDragStart={() => setDragId(link.id)} className="glow-border p-10 rounded-xl bg-[#030303] cursor-grab active:cursor-grabbing group">
+                            <div key={link.id} draggable onDragStart={() => setDragId(link.id)} className="glow-border p-10 rounded-xl bg-[#030303] cursor-grab group">
                                 <div className="flex justify-between items-start mb-6">
-                                    <span className="text-[10px] text-orange-500/40 uppercase tracking-widest">Active_Node</span>
-                                    <button onClick={() => setData(prev => ({...prev, links: prev.links.filter(l => l.id !== link.id)}))} className="opacity-0 group-hover:opacity-100 text-red-900 hover:text-red-500 text-xl">×</button>
+                                    <span className="text-[10px] text-orange-500/40 uppercase tracking-widest">Node</span>
+                                    <button onClick={() => setData(prev => ({...prev, links: prev.links.filter(l => l.id !== link.id)}))} className="opacity-0 group-hover:opacity-100 text-red-900">×</button>
                                 </div>
-                                <h3 onClick={() => window.open(link.url, '_blank')} className="text-xl lit-text truncate cursor-pointer uppercase">
-                                    {link.name}
-                                </h3>
-                                <p className="text-[10px] text-gray-700 truncate mt-4 opacity-50 uppercase tracking-tighter">{link.url}</p>
+                                <h3 onClick={() => window.open(link.url, '_blank')} className="text-xl lit-text truncate cursor-pointer uppercase">{link.name}</h3>
                             </div>
                         ))}
                     </div>
 
-                    {/* Config Modal */}
                     {modal.open && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 modal-bg">
                             <div className="glow-border w-full max-w-lg p-14 bg-black rounded-2xl">
                                 <h2 className="text-md font-bold uppercase tracking-[0.5em] mb-12 border-b-2 border-orange-500/20 pb-4 text-orange-500 text-center">Config_{modal.type}</h2>
                                 <div className="space-y-10">
                                     <div>
-                                        <label className="text-xs uppercase text-orange-500/50 mb-4 block tracking-[0.2em]">Name</label>
+                                        <label className="text-xs uppercase text-orange-500/50 mb-4 block">Name</label>
                                         <input autoFocus value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="uppercase" />
                                     </div>
                                     {modal.type === 'link' && (
                                         <div>
-                                            <label className="text-xs uppercase text-orange-500/50 mb-4 block tracking-[0.2em]">URL</label>
+                                            <label className="text-xs uppercase text-orange-500/50 mb-4 block">URL</label>
                                             <input value={form.url} onChange={e => setForm({...form, url: e.target.value})} />
                                         </div>
                                     )}
