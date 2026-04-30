@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GENIE | Warm Command Deck</title>
+    <title>Tabs | Command Deck</title>
     
     <!-- Lightweight Dependencies -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -21,92 +21,84 @@
             overflow-x: hidden;
         }
 
-        /* Warm Orange Holographic Glow UI */
+        /* Warm Orange Glow - Match Screenshot 2026-04-30 at 04.14.47.png */
         .glow-border {
-            border: 1px solid rgba(255, 152, 0, 0.2);
+            border: 1px solid rgba(255, 152, 0, 0.3);
             box-shadow: 0 0 15px rgba(255, 152, 0, 0.05);
-            transition: border 0.3s, box-shadow 0.3s, transform 0.2s;
+            transition: border 0.3s, box-shadow 0.3s;
         }
 
         .glow-border:hover {
-            border-color: rgba(255, 152, 0, 0.8);
-            box-shadow: 0 0 25px rgba(255, 152, 0, 0.2);
-            transform: translateY(-2px);
+            border-color: rgba(255, 152, 0, 1);
+            box-shadow: 0 0 20px rgba(255, 152, 0, 0.15);
         }
 
-        /* "Lit" text effect for Link Names */
+        /* Lit text for readability */
         .lit-text {
             color: #fff;
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
-            font-weight: 600;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
         }
 
-        .btn-primary {
-            background: #ff9800;
+        .btn-execute {
+            background: #ff7a1a;
             color: #000;
             font-weight: bold;
-            padding: 12px 24px;
-            border-radius: 6px;
+            padding: 14px 28px;
+            border-radius: 4px;
             text-transform: uppercase;
-            font-size: 13px;
-            letter-spacing: 1.5px;
-            box-shadow: 0 0 10px rgba(255, 152, 0, 0.3);
+            font-size: 12px;
+            letter-spacing: 2px;
         }
 
-        .btn-secondary {
-            border: 1px solid #ff9800;
-            color: #ff9800;
-            padding: 12px 24px;
-            border-radius: 6px;
+        .btn-abort {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 14px 28px;
+            border-radius: 4px;
             text-transform: uppercase;
-            font-size: 13px;
-            letter-spacing: 1.5px;
-        }
-
-        /* Improved spacing for high-density cards */
-        .card-large {
-            min-height: 120px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            font-size: 12px;
+            letter-spacing: 2px;
         }
 
         input {
-            background: #111 !important;
-            border: 1px solid #ff980044 !important;
+            background: #0a0a0a !important;
+            border: 1px solid #1a1a1a !important;
             color: #fff !important;
-            font-size: 16px !important; /* Prevents zoom on mobile */
-        }
-        
-        .modal-bg {
-            background: rgba(0, 0, 0, 0.95);
+            padding: 16px !important;
+            width: 100%;
+            border-radius: 4px;
         }
 
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #000; }
-        ::-webkit-scrollbar-thumb { background: #ff980044; border-radius: 10px; }
+        input:focus {
+            border-color: #ff9800 !important;
+            outline: none;
+        }
+
+        .modal-bg { background: rgba(0, 0, 0, 0.95); }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
         const App = () => {
             const [data, setData] = useState(() => {
-                const saved = localStorage.getItem('genie_warm_vault');
+                const saved = localStorage.getItem('genie_tabs_v3');
                 return saved ? JSON.parse(saved) : { folders: [], links: [] };
             });
 
             const [modal, setModal] = useState({ open: false, type: 'link' });
             const [form, setForm] = useState({ name: '', url: '' });
             const [dragId, setDragId] = useState(null);
+            const fileInputRef = useRef(null);
 
             useEffect(() => {
-                localStorage.setItem('genie_warm_vault', JSON.stringify(data));
+                localStorage.setItem('genie_tabs_v3', JSON.stringify(data));
             }, [data]);
 
+            // Item Management
             const addItem = () => {
                 if (!form.name) return;
                 if (modal.type === 'folder') {
@@ -117,10 +109,11 @@
                     const newLink = { id: 'l' + Date.now(), name: form.name, url: cleanUrl };
                     setData(prev => ({ ...prev, links: [...prev.links, newLink] }));
                 }
-                closeModal();
+                setModal({ open: false });
+                setForm({ name: '', url: '' });
             };
 
-            const deleteItem = (id, type, folderId = null) => {
+            const removeItem = (id, type, folderId = null) => {
                 if (type === 'folder') {
                     setData(prev => ({ ...prev, folders: prev.folders.filter(f => f.id !== id) }));
                 } else if (folderId) {
@@ -133,11 +126,33 @@
                 }
             };
 
-            const closeModal = () => {
-                setModal({ open: false });
-                setForm({ name: '', url: '' });
+            // JSON Sync Engine
+            const downloadBackup = () => {
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `tabs_backup_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
             };
 
+            const handleFileUpload = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const imported = JSON.parse(event.target.result);
+                        if (imported.folders && imported.links) {
+                            setData(imported);
+                            alert("Data Imported Successfully");
+                        }
+                    } catch (err) { alert("Error: Invalid JSON file"); }
+                };
+                reader.readAsText(file);
+            };
+
+            // DnD Logic
             const onDrop = (targetFolderId) => {
                 if (!dragId || dragId.startsWith('f')) return;
                 setData(prev => {
@@ -152,104 +167,72 @@
             };
 
             return (
-                <div className="min-h-screen p-8 md:p-16 max-w-6xl mx-auto">
-                    <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 border-b border-orange-500/20 pb-10">
-                        <div>
-                            <h1 className="text-3xl font-bold tracking-tighter uppercase italic">
-                                <span className="text-orange-500">GENIE</span> COMMAND
-                            </h1>
-                            <p className="text-[10px] text-orange-500/60 tracking-[0.5em] uppercase mt-2">Eye-Safe / Low-Resource / V2.5</p>
+                <div className="min-h-screen p-8 max-w-6xl mx-auto">
+                    {/* Centered Layout from Screenshot 2026-04-30 at 04.14.53.png */}
+                    <header className="text-center mb-20 pt-12">
+                        <h1 className="text-6xl font-bold tracking-[0.4em] uppercase italic text-white mb-8">Tabs</h1>
+                        <div className="flex flex-wrap justify-center gap-6">
+                            <button onClick={() => setModal({ open: true, type: 'folder' })} className="text-[10px] uppercase tracking-[0.3em] text-orange-500/50 hover:text-orange-500">New Folder</button>
+                            <button onClick={() => setModal({ open: true, type: 'link' })} className="text-[10px] uppercase tracking-[0.3em] text-orange-500/50 hover:text-orange-500">Add Link Card</button>
+                            <button onClick={downloadBackup} className="text-[10px] uppercase tracking-[0.3em] text-gray-500 hover:text-white">Download JSON</button>
+                            <button onClick={() => fileInputRef.current.click()} className="text-[10px] uppercase tracking-[0.3em] text-gray-500 hover:text-white">Upload JSON</button>
                         </div>
-                        <div className="flex gap-4 mt-6 md:mt-0">
-                            <button onClick={() => setModal({ open: true, type: 'folder' })} className="btn-secondary">New Folder</button>
-                            <button onClick={() => setModal({ open: true, type: 'link' })} className="btn-primary">Add Link Card</button>
-                        </div>
+                        <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleFileUpload} />
                     </header>
 
-                    {/* Folders Section - Larger Format */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-16">
+                    {/* Folders Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-16">
                         {data.folders.map(folder => (
-                            <div 
-                                key={folder.id}
-                                onDragOver={e => e.preventDefault()}
-                                onDrop={() => onDrop(folder.id)}
-                                className="glow-border p-8 rounded-xl bg-[#050505] min-h-[220px]"
-                            >
+                            <div key={folder.id} onDragOver={e => e.preventDefault()} onDrop={() => onDrop(folder.id)} className="glow-border p-8 rounded-lg bg-[#050505] min-h-[180px]">
                                 <div className="flex justify-between items-center mb-6 border-b border-orange-500/10 pb-4">
-                                    <span className="text-xs font-bold uppercase tracking-[0.3em] text-orange-500/80">{folder.name}</span>
-                                    <button onClick={() => deleteItem(folder.id, 'folder')} className="text-orange-900 hover:text-orange-500 text-[10px] tracking-widest">REMOVE_DIR</button>
+                                    <span className="text-[11px] font-bold uppercase tracking-[0.4em] text-orange-500/60">{folder.name}</span>
+                                    <button onClick={() => removeItem(folder.id, 'folder')} className="text-orange-900 hover:text-orange-500 text-[10px] uppercase tracking-tighter">Remove</button>
                                 </div>
                                 <div className="flex flex-wrap gap-4">
                                     {folder.links.map(link => (
-                                        <div 
-                                            key={link.id}
-                                            onClick={() => window.open(link.url, '_blank')}
-                                            className="px-5 py-3 border border-orange-500/20 text-sm hover:bg-orange-500 hover:text-black cursor-pointer rounded-lg transition-all lit-text"
-                                        >
+                                        <div key={link.id} onClick={() => window.open(link.url, '_blank')} className="px-5 py-3 border border-orange-500/20 text-sm hover:bg-orange-500 hover:text-black cursor-pointer rounded transition-all lit-text">
                                             {link.name}
-                                            <span onClick={(e) => { e.stopPropagation(); deleteItem(link.id, 'link', folder.id); }} className="ml-3 opacity-40 hover:opacity-100 text-lg">×</span>
                                         </div>
                                     ))}
-                                    {folder.links.length === 0 && <span className="text-[10px] text-gray-800 uppercase tracking-widest">Waiting for nodes...</span>}
                                 </div>
                             </div>
                         ))}
                     </div>
 
-                    {/* Loose Links Section - Larger Cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {/* Loose Links Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
                         {data.links.map(link => (
-                            <div 
-                                key={link.id}
-                                draggable
-                                onDragStart={() => setDragId(link.id)}
-                                className="glow-border p-8 rounded-xl bg-[#050505] cursor-grab active:cursor-grabbing group card-large"
-                            >
-                                <div className="flex justify-between items-start">
-                                    <span className="text-[9px] text-orange-500/40 uppercase tracking-widest">Active_Node</span>
-                                    <button onClick={() => deleteItem(link.id, 'link')} className="opacity-0 group-hover:opacity-100 text-orange-900 hover:text-orange-500 text-xl leading-none transition-opacity">×</button>
+                            <div key={link.id} draggable onDragStart={() => setDragId(link.id)} className="glow-border p-8 rounded-lg bg-[#050505] cursor-grab active:cursor-grabbing group">
+                                <div className="flex justify-between items-start mb-4">
+                                    <span className="text-[9px] text-orange-500/30 uppercase tracking-widest">Node</span>
+                                    <button onClick={() => removeItem(link.id, 'link')} className="opacity-0 group-hover:opacity-100 text-orange-900 hover:text-orange-500 transition-opacity">×</button>
                                 </div>
-                                <h3 
-                                    onClick={() => window.open(link.url, '_blank')}
-                                    className="text-lg lit-text truncate cursor-pointer mt-4"
-                                >
-                                    {link.name}
-                                </h3>
-                                <p className="text-[9px] text-gray-600 truncate mt-2 opacity-50 uppercase">{link.url.replace('https://', '')}</p>
+                                <h3 onClick={() => window.open(link.url, '_blank')} className="text-lg lit-text truncate cursor-pointer">{link.name}</h3>
                             </div>
                         ))}
                     </div>
 
-                    {/* Config Modal */}
+                    {/* Config Modal - Match Screenshot 2026-04-30 at 04.14.47.png */}
                     {modal.open && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 modal-bg">
-                            <div className="glow-border w-full max-w-md p-10 bg-black rounded-2xl">
-                                <h2 className="text-sm font-bold uppercase tracking-[0.4em] mb-10 border-b border-orange-500/20 pb-4 text-orange-500">
+                            <div className="glow-border w-full max-w-md p-12 bg-black rounded-xl">
+                                <h2 className="text-sm font-bold uppercase tracking-[0.5em] mb-12 border-b border-orange-500/20 pb-4 text-orange-500">
                                     Config_{modal.type}
                                 </h2>
-                                <div className="space-y-6">
+                                <div className="space-y-8">
                                     <div>
-                                        <label className="text-[10px] uppercase text-orange-500/50 mb-2 block">Display Identity</label>
-                                        <input 
-                                            autoFocus
-                                            className="w-full p-4 rounded outline-none"
-                                            value={form.name}
-                                            onChange={e => setForm({...form, name: e.target.value})}
-                                        />
+                                        <label className="text-[10px] uppercase text-orange-500/40 mb-3 block tracking-widest">Name</label>
+                                        <input autoFocus value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
                                     </div>
                                     {modal.type === 'link' && (
                                         <div>
-                                            <label className="text-[10px] uppercase text-orange-500/50 mb-2 block">Network Path (URL)</label>
-                                            <input 
-                                                className="w-full p-4 rounded outline-none"
-                                                value={form.url}
-                                                onChange={e => setForm({...form, url: e.target.value})}
-                                            />
+                                            <label className="text-[10px] uppercase text-orange-500/40 mb-3 block tracking-widest">URL</label>
+                                            <input value={form.url} onChange={e => setForm({...form, url: e.target.value})} />
                                         </div>
                                     )}
                                     <div className="flex gap-4 pt-6">
-                                        <button onClick={closeModal} className="flex-1 py-4 text-[10px] uppercase border border-orange-500/20 hover:bg-orange-500/5 tracking-widest">Abort</button>
-                                        <button onClick={addItem} className="flex-1 py-4 text-[10px] uppercase bg-orange-500 text-black font-bold tracking-widest">Execute</button>
+                                        <button onClick={() => setModal({open: false})} className="btn-abort flex-1">Abort</button>
+                                        <button onClick={addItem} className="btn-execute flex-1">Execute</button>
                                     </div>
                                 </div>
                             </div>
